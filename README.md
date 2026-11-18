@@ -53,6 +53,14 @@ Verify a download with:
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
+If the release for a tag was created by hand, the workflow attaches the
+binaries to it. To build an existing tag again, run the Release workflow
+manually with that tag:
+
+```sh
+gh workflow run release.yml -f tag=vX.Y.Z
+```
+
 ## Development
 
 ```sh
