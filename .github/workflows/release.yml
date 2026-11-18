@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # Builds and uploads the binaries of an existing tag again, e.g. when its release was created by hand.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build, e.g. v1.0.0
+        required: true
 
 permissions:
   contents: write
@@ -10,15 +16,17 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.VERSION }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
       - run: go test ./...
       - name: Build
-        env:
-          VERSION: ${{ github.ref_name }}
         run: |
           mkdir dist
           for arch in amd64 arm64; do
@@ -30,5 +38,10 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ github.ref_name }}
-        run: gh release create "$VERSION" --verify-tag --generate-notes dist/*
+        # A release created by hand for the tag gets the binaries attached instead of failing.
+        run: |
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            gh release upload "$VERSION" --clobber dist/*
+          else
+            gh release create "$VERSION" --verify-tag --generate-notes dist/*
+          fi
